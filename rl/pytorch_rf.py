@@ -6,7 +6,26 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using {device} device")
 gamma = 0.99
+USE_WANDB = False
+
+if USE_WANDB:
+    import wandb
+    wandb.login()
+    wandb.init(
+            # Set the project where this run will be logged
+            project="basic-intro",
+            # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
+            name=f"experiment_1",
+            # Track hyperparameters and run metadata
+            config={
+                "learning_rate": 0.02,
+                "architecture": "CNN",
+                "dataset": "CIFAR-100",
+                "epochs": 10,
+            })
 
 class Pi(nn.Module):
     def __init__(self, in_dim, out_dim):
@@ -60,9 +79,9 @@ def train(pi, optimizer):
 
 
 def main():
-    LOAD = True
-    #env = gym.make("CartPole-v1")
-    env = gym.make("CartPole-v1", render_mode="human")
+    LOAD = False
+    env = gym.make("CartPole-v1")
+    #env = gym.make("CartPole-v1", render_mode="human")
     in_dim = env.observation_space.shape[0]  # 4
     out_dim = env.action_space.n  # 2
     pi = Pi(in_dim, out_dim)  # стратегия pi_theta для REINFORCE
@@ -70,7 +89,7 @@ def main():
         pi.load_state_dict(torch.load("CartPole.pth"))
 
     optimizer = optim.Adam(pi.parameters(), lr=0.01)
-    for epi in range(3000):
+    for epi in range(10000):
         state, _ = env.reset()
         for t in range(200):  # 200 — максимальное количество шагов в cartpole
             action = pi.act(state)
@@ -82,9 +101,17 @@ def main():
         total_reward = sum(pi.rewards)
         solved = total_reward > 195.0
         pi.onpolicy_reset()  # обучение по актуальному опыту: очистить память после обучения
-        print(f'Episode {epi}, loss: {loss}, total_reward: {total_reward}, solved: {solved}')
+
+        if USE_WANDB:
+            wandb.log({"total_reward ": total_reward, "loss": loss})
+        else:
+            print(f'Episode {epi}, loss: {loss}, total_reward: {total_reward}, solved: {solved}')
+
+    if USE_WANDB:
+        wandb.finish()
     #if not LOAD:
         #torch.save(pi.state_dict(), 'CartPole.pth')
+
 
 
 if __name__ == '__main__':
