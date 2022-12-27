@@ -1,22 +1,12 @@
-# import tensorflow as tf
-# print("TensorFlow version:", tf.__version__)
-# model = tf.keras.models.Sequential([
-#   tf.keras.layers.Flatten(input_shape=(28, 28)),
-#   tf.keras.layers.Dense(128, activation='relu'),
-#   tf.keras.layers.Dropout(0.2),
-#   tf.keras.layers.Dense(10)
-# ])
-# print (model.f)
-
 from torch.distributions import Categorical
+import torchvision.models as models
 import gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
+from pathlib import Path
 gamma = 0.99
-
 
 class Pi(nn.Module):
     def __init__(self, in_dim, out_dim):
@@ -36,6 +26,7 @@ class Pi(nn.Module):
 
     def forward(self, x):
         pdparam = self.model(x)
+        #print(pdparam)
         return pdparam
 
     def act(self, state):
@@ -67,33 +58,33 @@ def train(pi, optimizer):
     optimizer.step()  # градиентное восхождение, обновление весов
     return loss
 
-import time
-def main():
-    #env = gym.make("CartPole-v1", render_mode="human")
-    max_steps = 300
-    env = gym.make("CartPole-v1", max_episode_steps=max_steps, render_mode="human")
 
+def main():
+    LOAD = True
+    #env = gym.make("CartPole-v1")
+    env = gym.make("CartPole-v1", render_mode="human")
     in_dim = env.observation_space.shape[0]  # 4
     out_dim = env.action_space.n  # 2
-    print(out_dim)
     pi = Pi(in_dim, out_dim)  # стратегия pi_theta для REINFORCE
+    if Path("CartPole.pth").exists() and LOAD:
+        pi.load_state_dict(torch.load("CartPole.pth"))
+
     optimizer = optim.Adam(pi.parameters(), lr=0.01)
-    for epi in range(5000):
+    for epi in range(3000):
         state, _ = env.reset()
-        for t in range(max_steps):  # 200 — максимальное количество шагов в cartpole
+        for t in range(200):  # 200 — максимальное количество шагов в cartpole
             action = pi.act(state)
             state, reward, done, truncated, _ = env.step(action)
             pi.rewards.append(reward)
-            #print(pi.rewards)
-            #time.sleep(1)
-            #env.render()
             if done:
                 break
         loss = train(pi, optimizer)  # обучение в эпизоде
         total_reward = sum(pi.rewards)
-        solved = total_reward > (max_steps - 5)
+        solved = total_reward > 195.0
         pi.onpolicy_reset()  # обучение по актуальному опыту: очистить память после обучения
         print(f'Episode {epi}, loss: {loss}, total_reward: {total_reward}, solved: {solved}')
+    #if not LOAD:
+        #torch.save(pi.state_dict(), 'CartPole.pth')
 
 
 if __name__ == '__main__':
