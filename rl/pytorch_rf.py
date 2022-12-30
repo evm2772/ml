@@ -53,8 +53,10 @@ class Pi(nn.Module):
         x = torch.from_numpy(state.astype(np.float32))  # преобразование в тензор
         pdparam = self.forward(x)  # прямой проход
         pd = Categorical(logits=pdparam)  # вероятностное распределение
+        probs = pd.probs
         action = pd.sample()  # pi(a|s) выбор действия по распределению pd
         log_prob = pd.log_prob(action)  # логарифм вероятности pi(a|s)
+        prob_action = torch.exp(log_prob)
         self.log_probs.append(log_prob)  # сохраняем для обучения
         return action.item()
 
@@ -80,8 +82,8 @@ def train(pi, optimizer):
 
 def main():
     LOAD = False
-    env = gym.make("CartPole-v1")
-    #env = gym.make("CartPole-v1", render_mode="human")
+    #env = gym.make("CartPole-v1")
+    env = gym.make("CartPole-v1", render_mode="human")
     in_dim = env.observation_space.shape[0]  # 4
     out_dim = env.action_space.n  # 2
     pi = Pi(in_dim, out_dim)  # стратегия pi_theta для REINFORCE
