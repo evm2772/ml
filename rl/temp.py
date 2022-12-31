@@ -1,32 +1,38 @@
-import random
-import wandb
-wandb.login(key="08ce04f8b0b3a5e4256b4bb886a0f9b5b370805f")
-# Launch 5 simulated experiments
-total_runs = 5
-for run in range(total_runs):
-    # 🐝 1️⃣ Start a new run to track this script
-    wandb.init(
-        # Set the project where this run will be logged
-        project="basic-intro",
-        # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
-        name=f"experiment_{run}",
-        # Track hyperparameters and run metadata
-        config={
-            "learning_rate": 0.02,
-            "architecture": "CNN",
-            "dataset": "CIFAR-100",
-            "epochs": 10,
-        })
 
-    # This simple block simulates a training loop logging metrics
-    epochs = 10
-    offset = random.random() / 5
-    for epoch in range(2, epochs):
-        acc = 1 - 2 ** -epoch - random.random() / epoch - offset
-        loss = 2 ** -epoch + random.random() / epoch + offset
+import numpy as np
+from vedo import settings, Line, show
 
-        # 🐝 2️⃣ Log metrics from your script to W&B
-        wandb.log({"acc": acc, "loss": loss})
+settings.default_font = "Theemim"
 
-    # Mark the run as finished
-    wandb.finish()
+# Generate random data
+np.random.seed(1)
+data = np.random.uniform(0, 1, (25, 100))
+X = np.linspace(-1, 1, data.shape[-1])
+G = 0.15 * np.exp(-4 * X**2) # use a  gaussian as a weight
+
+# Generate line plots
+lines = []
+for i, d in enumerate(data):
+    pts = np.c_[X, np.zeros_like(X)+i/10, G*d]
+    lines.append(Line(pts, lw=3))
+
+# Set up the first frame
+axes = dict(xtitle='\Deltat /\mus', ytitle="source", ztitle="")
+plt = show(lines, __doc__, axes=axes, elevation=-30, interactive=False, bg='k8')
+
+# vd = Video("anim_lines.mp4")
+for i in range(50):
+    data[:, 1:] = data[:, :-1]                      # Shift data to the right
+    data[:, 0] = np.random.uniform(0, 1, len(data)) # Fill-in new values
+    for line, d in zip(lines, data):                    # Update data
+        newpts = line.points()
+        newpts[:,2] = G * d
+        line.points(newpts).cmap('gist_heat_r', newpts[:,2])
+    plt.render()
+    if plt.escaped: break # if ESC is hit during the loop
+    # vd.add_frame()
+# vd.close()
+
+plt.interactive().close()
+
+
